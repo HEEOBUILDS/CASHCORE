@@ -132,6 +132,7 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .tx .nm{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tx .am{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;flex:0 0 auto;letter-spacing:-.01em}
 .tx .am.in{color:var(--accent)}
+.tx .am.fuel{color:var(--green)}
 .tx .l2{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:5px}
 .tx .dt{font-size:13px;color:var(--label2);font-variant-numeric:tabular-nums}
 .tx .bl{font-size:13px;color:var(--label2);font-variant-numeric:tabular-nums}
@@ -285,6 +286,7 @@ const KEY = 'cashflow2026.v1';
 const DOW = ['일','월','화','수','목','금','토'];
 const END = '2026-12-31';
 const V = 4;
+const FUEL = '주유비';
 const GROUPS = [
   { g:'loan', t:'대출',   unit:'건' },
   { g:'ins',  t:'보험료', unit:'건' },
@@ -416,7 +418,7 @@ function render(){
       b.className = 'tx';
       b.innerHTML =
         `<span class="l1"><span class="nm">${esc(r.it.n)}${r.it.seed?'':'<span class="tag">추가</span>'}</span>`+
-        `<span class="am num${r.it.a>0?' in':''}">${signed(r.it.a)}</span></span>`+
+        `<span class="am num${r.it.a>0?' in':(r.it.n===FUEL?' fuel':'')}">${signed(r.it.a)}</span></span>`+
         `<span class="l2"><span class="dt">${md(r.it.d)} ${dow(r.it.d)}</span>`+
         `<span class="bl num${r.bal<0?' neg':''}">${won(r.bal)}</span></span>`;
       b.onclick = ()=> r.it.def ? openDef(state.defs.find(x=>x.id===r.it.def)) : openEdit(r.it);
@@ -637,7 +639,6 @@ $('dDel').onclick = ()=>{
 $('dCancel').onclick = hideSheets;
 
 /* ---------- quick add: 주유비 ---------- */
-const QNAME = '주유비';
 const qAmt = $('qAmt');
 const qAdd = $('qAdd');
 function refreshQuick(){
@@ -655,7 +656,7 @@ qAmt.oninput = ()=>{
 qAdd.onclick = ()=>{
   const d = digits(qAmt.value);
   if(!d) return;
-  state.items.push({ id:uid(), d:todayStr(), n:QNAME, a:-parseInt(d,10), seed:false });
+  state.items.push({ id:uid(), d:todayStr(), n:FUEL, a:-parseInt(d,10), seed:false });
   qAmt.value = ''; qAdd.disabled = true; qAmt.blur();
   refreshQuick(); save(); render();
 };
