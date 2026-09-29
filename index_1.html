@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="CASHCORE">
@@ -61,6 +64,10 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .hero .sub{font-size:14px;color:var(--label2);margin-top:8px}
 
 .hint{font-size:13px;color:var(--label2);padding:0 4px 20px;margin-top:-6px;line-height:1.5}
+
+/* base marker under hero */
+.baseline{font-size:13px;color:var(--label2);padding:0 2px 14px;margin-top:-8px}
+.baseline b{color:var(--label);font-weight:600;font-variant-numeric:tabular-nums}
 
 /* month */
 .mhead{
@@ -125,9 +132,10 @@ button{border:0;background:none;padding:0;cursor:pointer}
 .tx{
   width:100%;text-align:left;display:block;
   background:var(--card);border-radius:14px;padding:12px 16px;margin-bottom:8px;
-  transition:background .12s ease,transform .12s ease;
+  transition:background .12s ease,transform .12s ease,opacity .12s ease;
 }
 .tx:active{background:var(--card2);transform:scale(.985)}
+.tx.past{opacity:.5}
 .tx .l1{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .tx .nm{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tx .am{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;flex:0 0 auto;letter-spacing:-.01em}
@@ -206,6 +214,8 @@ button{border:0;background:none;padding:0;cursor:pointer}
     <div class="big num" id="heroVal">—</div>
   </div>
 
+  <div class="baseline" id="baseInfo" hidden></div>
+
   <div class="quick">
     <svg class="qicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15"/><path d="M3 20h12"/><path d="M6.5 8h5"/><path d="M14 10h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V9l-2.5-2.5"/></svg>
     <div class="qcol">
@@ -228,7 +238,7 @@ button{border:0;background:none;padding:0;cursor:pointer}
   <div class="tools">
     <button id="exportBtn">백업 내보내기</button>
     <button id="importBtn">불러오기</button>
-    <button id="resetBtn">처음으로</button>
+    <button id="baseBtn">기준 잔액</button>
   </div>
   <input type="file" id="fileIn" accept="application/json,.json" hidden>
 </div>
@@ -245,7 +255,7 @@ button{border:0;background:none;padding:0;cursor:pointer}
   </div>
   <div class="form">
     <div class="field"><span class="fl">날짜</span><input type="date" id="fDate" min="2026-01-01" max="2026-12-31"></div>
-    <div class="field"><span class="fl">내용</span><input type="text" id="fName" placeholder="병원비" autocomplete="off"></div>
+    <div class="field"><span class="fl">내용</span><input type="text" id="fName" placeholder="기타" autocomplete="off"></div>
     <div class="field amt"><span class="fl">금액</span><input type="text" id="fAmt" inputmode="numeric" placeholder="0" autocomplete="off"><span class="unit">원</span></div>
   </div>
   <button class="btn pri" id="saveBtn">저장</button>
@@ -268,6 +278,19 @@ button{border:0;background:none;padding:0;cursor:pointer}
   <button class="btn pri" id="dSave">저장</button>
   <button class="btn dan" id="dDel" hidden>삭제</button>
   <button class="btn sec" id="dCancel">취소</button>
+</div>
+
+<div class="sheet" id="baseSheet">
+  <div class="grab"></div>
+  <h2>기준 잔액</h2>
+  <p class="hint" style="text-align:center;padding:0 8px 16px;margin:0">기준일과 그날 통장 잔액을 넣으면, 이전 항목은 빼고 그 잔액부터 다시 계산합니다.</p>
+  <div class="form">
+    <div class="field"><span class="fl">기준일</span><input type="date" id="bDate" min="2026-01-01" max="2026-12-31"></div>
+    <div class="field amt"><span class="fl">그날 잔액</span><input type="text" id="bAmt" inputmode="numeric" placeholder="0" autocomplete="off"><span class="unit">원</span></div>
+  </div>
+  <button class="btn pri" id="bSave">저장</button>
+  <button class="btn dan" id="bClear" hidden>기준 지우기 (8/3부터 계산)</button>
+  <button class="btn sec" id="bCancel">취소</button>
 </div>
 
 <div class="sheet" id="scopeSheet">
@@ -311,6 +334,11 @@ const digits = s => { const v = String(s).replace(/[^0-9]/g,''); return v ? Stri
 const fmtField = s => { const d = digits(s); return d ? parseInt(d,10).toLocaleString('ko-KR') : ''; };
 const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clampDay = (y,m,d) => Math.min(Math.max(1, d|0), new Date(y, m, 0).getDate());
+
+function todayISO(){
+  const t = new Date();
+  return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+}
 
 /* ---------- derive: 상세 정의 -> 거래 항목 ---------- */
 function derive(defs){
@@ -388,6 +416,17 @@ function render(){
   hv.style.color = final < 0 ? 'var(--red)' : '';
   document.getElementById('barVal').textContent = won(final);
 
+  const bi = document.getElementById('baseInfo');
+  const custom = !(state.baseDate === FIRST && !state.baseAmt);
+  if(custom){
+    bi.hidden = false;
+    bi.innerHTML = `기준 ${md(state.baseDate)} · <b>${won(state.baseAmt)}원</b>`;
+  } else {
+    bi.hidden = true;
+  }
+
+  const today = todayISO();
+
   const byMonth = new Map();
   for(const r of rows){
     const k = ym(r.it.d);
@@ -415,7 +454,7 @@ function render(){
     if(!isOpen) body.hidden = true;
     for(const r of arr){
       const b = document.createElement('button');
-      b.className = 'tx';
+      b.className = 'tx' + (r.it.d < today ? ' past' : '');
       b.innerHTML =
         `<span class="l1"><span class="nm">${esc(r.it.n)}${r.it.seed?'':'<span class="tag">추가</span>'}</span>`+
         `<span class="am num${r.it.a>0?' in':(r.it.n===FUEL?' fuel':'')}">${signed(r.it.a)}</span></span>`+
@@ -501,8 +540,7 @@ function setSign(s){
 document.querySelectorAll('#signSeg button').forEach(b=> b.onclick = ()=> setSign(+b.dataset.s));
 
 function todayStr(){
-  const t = new Date();
-  const s = t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  const s = todayISO();
   return s < FIRST ? FIRST : (s > END ? END : s);
 }
 function openAdd(){
@@ -585,7 +623,6 @@ document.getElementById('cancelBtn').onclick = hideSheets;
 document.getElementById('fab').onclick = openAdd;
 
 /* ---------- detail sheet ---------- */
-const dEls = { n:'dName', a:'dAmt', day:'dDay', from:'dFrom', p:'dP', r:'dR', memo:'dMemo' };
 const $ = id => document.getElementById(id);
 $('dAmt').oninput = e=>{ e.target.value = fmtField(e.target.value); };
 $('dP').oninput   = e=>{ e.target.value = fmtField(e.target.value); };
@@ -638,6 +675,30 @@ $('dDel').onclick = ()=>{
 };
 $('dCancel').onclick = hideSheets;
 
+/* ---------- 기준 잔액 ---------- */
+$('bAmt').oninput = e=>{ e.target.value = fmtField(e.target.value); };
+function openBase(){
+  const custom = !(state.baseDate === FIRST && !state.baseAmt);
+  $('bDate').value = custom ? state.baseDate : todayStr();
+  $('bAmt').value  = custom ? state.baseAmt.toLocaleString('ko-KR') : '';
+  $('bClear').hidden = !custom;
+  showSheet($('baseSheet'));
+}
+$('bSave').onclick = ()=>{
+  const d = $('bDate').value;
+  const raw = digits($('bAmt').value);
+  if(!d){ $('bDate').focus(); return; }
+  state.baseDate = d;
+  state.baseAmt = raw ? parseInt(raw,10) : 0;
+  open_ = {}; save(); render(); hideSheets();
+};
+$('bClear').onclick = ()=>{
+  state.baseDate = FIRST; state.baseAmt = 0;
+  open_ = {}; save(); render(); hideSheets();
+};
+$('bCancel').onclick = hideSheets;
+$('baseBtn').onclick = openBase;
+
 /* ---------- quick add: 주유비 ---------- */
 const qAmt = $('qAmt');
 const qAdd = $('qAdd');
@@ -660,14 +721,14 @@ qAdd.onclick = ()=>{
   qAmt.value = ''; qAdd.disabled = true; qAmt.blur();
   refreshQuick(); save(); render();
 };
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshQuick(); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ refreshQuick(); render(); } });
 
 /* ---------- backup ---------- */
 $('exportBtn').onclick = ()=>{
   const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `cashcore-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `cashcore-${todayISO()}.json`;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 };
@@ -685,11 +746,6 @@ $('fileIn').onchange = e=>{
   };
   r.readAsText(f);
   e.target.value = '';
-};
-$('resetBtn').onclick = ()=>{
-  if(!confirm('저장된 데이터가 모두 지워집니다. 백업 파일이 있어야 되돌릴 수 있어요.')) return;
-  localStorage.removeItem(KEY);
-  state = fresh(); open_ = {}; save(); boot();
 };
 
 /* ---------- boot ---------- */
